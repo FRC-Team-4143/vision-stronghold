@@ -14,7 +14,6 @@
 //#define SAVEFILE
 //#define FINDRECT
 #define CANNY
-//#define HOUGH
 
 //#define CAMSIZE 1280,480
 #define CAMSIZE 640,480
@@ -86,33 +85,6 @@ cv::Rect findRect(cv::Mat& hsv)
   //return rect;
   return cv::Rect();
   //throw std::runtime_error("No rect found.");
-}
-
-static cv::Mat drawHoughLinesOnMat (cv::gpu::GpuMat hough_Mat, cv::gpu::GpuMat houghLines)
-{
-    cv::Mat output_Mat(hough_Mat);
-    //cv::cvtColor(cv::Mat(hough_Mat), output_Mat, CV_GRAY2BGR);
-
-    std::vector<cv::Vec4i> lines_vector;
-    if (!houghLines.empty())
-    {
-        lines_vector.resize(houghLines.cols);
-        cv::Mat temp_Mat (1, houghLines.cols, CV_32SC4, &lines_vector[0]);
-        houghLines.download (temp_Mat);
-    }
-    else
-       cout << "houghLines empty" << endl;
-
-    if(!lines_vector.size())
-	cout << "lines_vector empty" << endl;
-
-    for (size_t i=0; i<lines_vector.size(); ++i)
-    {
-        cv::Vec4i l = lines_vector[i];
-        cv::line(output_Mat, cv::Point(l[0], l[1]), cv::Point(l[2], l[3]), cv::Scalar(0, 0, 255), 1, 8);
-    }
-
-    return output_Mat;
 }
 
 void sendcenter(int s, struct sockaddr_in *si_other, int slen, int center) {
@@ -251,12 +223,7 @@ int main(int argc, char const *argv[]) {
         cv::gpu::Canny(gputhresh, gpuedges, 100, 200, 3);
         cv::Mat cpuedges(gpuedges);
         cv::Rect leftc = findRect(cpuedges);
-#ifdef HOUGH
-        cv::gpu::HoughLinesP(gpuedges, hough_lines, hough_buffer, 1.0f, (float)(CV_PI/180.0f), 5, 1);
-        //cv::gpu::HoughLines(gpuedges, hough_lines, 1.0f, (float)(CV_PI/180.0f), 1, true);
-        cv::Mat hough_mat = drawHoughLinesOnMat(gpuimage, hough_lines); 
-        cv::imshow("hough_mat", hough_mat);
-#endif
+        sendcenter(s, &si_other, slen, leftc.x + leftc.width/2);
 	cv::rectangle(cpuedges, leftc, cv::Scalar(255));
 #ifdef SHOW
         cv::imshow("canny", cpuedges);
@@ -295,6 +262,7 @@ int main(int argc, char const *argv[]) {
         cv::gpu::Canny(gputhresh2, gpuedges2, 100, 200, 3);
         cv::Mat cpuedges2(gpuedges2);
         cv::Rect rightc = findRect(cpuedges2);
+        sendcenter(s, &si_other, slen, rightc.x + rightc.width/2);
 	cv::rectangle(cpuedges2, rightc, cv::Scalar(255));
 #ifdef SHOW
         cv::imshow("canny", cpuedges2);
