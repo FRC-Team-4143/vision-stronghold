@@ -23,7 +23,7 @@ ELSE() # Linux
 find_package(ZED REQUIRED)
 find_package(CUDA 6.5 REQUIRED)
 ENDIF(WIN32)
-find_package(OpenCV 2.4 COMPONENTS core highgui imgproc REQUIRED)
+find_package(OpenCV 2.4 COMPONENTS core highgui imgproc features2d REQUIRED)
 
 include_directories(${ZED_INCLUDE_DIRS})
 include_directories(${CUDA_INCLUDE_DIRS})
@@ -55,7 +55,7 @@ add_definitions(-std=c++11)
 TARGET_LINK_LIBRARIES(${EXEC_NAME}
 			${ZED_LIBRARIES}
 			${OpenCV_LIBRARIES}
-			${CUDA_LIBRARIES} ${CUDA_nppi_LIBRARY} ${CUDA_npps_LIBRARY}
+			${CUDA_LIBRARIES} ${CUDA_npps_LIBRARY}
 			)
 
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O3" )
