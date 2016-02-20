@@ -1,6 +1,6 @@
 #include "kernel.cuh"
 
-__global__ void _InRange(cv::gpu::PtrStepSz<uchar4> src, cv::gpu::PtrStep<uchar4> out,
+__global__ void _InRange(cv::gpu::PtrStepSz<uchar4> src, cv::gpu::PtrStep<uchar> out,
                          unsigned char hue_low, unsigned char sat_low, unsigned char val_low,
                          unsigned char hue_high, unsigned char sat_high, unsigned char val_high)
 {
@@ -13,15 +13,15 @@ __global__ void _InRange(cv::gpu::PtrStepSz<uchar4> src, cv::gpu::PtrStep<uchar4
         sat_low <= v.y && v.y <= sat_high &&
         val_low <= v.z && v.z <= val_high)
     {
-      out(y, x) = make_uchar4(255, 255, 255, 255);
+      out(y, x) = 255;
     }
     else {
-      out(y, x) = make_uchar4(0, 0, 0, 255);
+      out(y, x) = 0;
     }
   }
 }
 
-void cuInRange(const cv::gpu::PtrStepSz<uchar4>& src, cv::gpu::PtrStep<uchar4> out,
+void cuInRange(const cv::gpu::PtrStepSz<uchar4>& src, cv::gpu::PtrStep<uchar> out,
                unsigned char hue_low, unsigned char sat_low, unsigned char val_low,
                unsigned char hue_high, unsigned char sat_high, unsigned char val_high)
 {
