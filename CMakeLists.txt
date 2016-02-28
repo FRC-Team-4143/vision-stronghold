@@ -23,7 +23,7 @@ ELSE() # Linux
 find_package(ZED REQUIRED)
 find_package(CUDA 6.5 REQUIRED)
 ENDIF(WIN32)
-find_package(OpenCV 2.4 COMPONENTS core highgui imgproc features2d REQUIRED)
+find_package(OpenCV 2.4 COMPONENTS core highgui imgproc features2d gpu REQUIRED)
 
 include_directories(${ZED_INCLUDE_DIRS})
 include_directories(${CUDA_INCLUDE_DIRS})
