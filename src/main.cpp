@@ -112,9 +112,10 @@ cv::Rect findRect_cpu(cv::Mat& mat)
   return findRect(hsv);
 }
 
-float findDepthMaxConfidence(Camera* zed, const cv::Rect& rect)
+#ifdef ZED
+float findDepthMaxConfidence(Camera* cam, const cv::Rect& rect)
 {
-  Mat confidence = zed->retrieveMeasure(CONFIDENCE);
+  Mat confidence = cam->retrieveMeasure(CONFIDENCE);
   float* conf_ptr = (float*)confidence.data;
   cv::Point min_conf;
   float min = 100.f;
@@ -127,10 +128,11 @@ float findDepthMaxConfidence(Camera* zed, const cv::Rect& rect)
       }
     }
   }
-  Mat depth = zed->retrieveMeasure(DEPTH);
+  Mat depth = cam->retrieveMeasure(DEPTH);
   float* depth_ptr = (float*)depth.data;
   return depth_ptr[min_conf.y * (depth.step/sizeof(float))+min_conf.y];
 }
+#endif
 
 void Send(int s, std::string message, struct sockaddr_in& si_other, int slen)
 {
@@ -152,27 +154,27 @@ int main(int argc, char **argv) {
     return -1;
   }
 
-  Camera *zed;
+  Camera *cam;
   if (argc == 1) {
-    zed = new Camera(HD720);
-    zed->setCameraSettingsValue(ZED_BRIGHTNESS, 0);
-    zed->setCameraSettingsValue(ZED_WHITEBALANCE, 3500);
+    cam = new Camera(HD720);
+    cam->setCameraSettingsValue(ZED_BRIGHTNESS, 0);
+    cam->setCameraSettingsValue(ZED_WHITEBALANCE, 3500);
   }
   else {
-    zed = new Camera(argv[1]);
+    cam = new Camera(argv[1]);
   }
 
-  ERRCODE err = zed->init(MODE::QUALITY, -1, false, false, false);
+  ERRCODE err = cam->init(MODE::QUALITY, -1, false, false, false);
   std::cout << errcode2str(err) << std::endl;
   if (err != SUCCESS) {
-    delete zed;
+    delete cam;
     return 1;
   }
 
   /*
   Algorithm
   =========
-  * Grab images from zed with depth calculation
+  * Grab images from cam with depth calculation
   * Convert left image to HSV (on gpu)
   * Threshold HSV image (on gpu)
   * Open/close HSV image? (on gpu)
@@ -180,9 +182,9 @@ int main(int argc, char **argv) {
   * FindContours
   */
 
-  // get the focale and the baseline of the zed
-  float fx = zed->getParameters()->LeftCam.fx;
-  float fy = zed->getParameters()->LeftCam.fy;
+  // get the focale and the baseline of the cam
+  float fx = cam->getParameters()->LeftCam.fx;
+  float fy = cam->getParameters()->LeftCam.fy;
 
 #ifndef __linux__
   WSADATA wsa;
@@ -214,29 +216,33 @@ int main(int argc, char **argv) {
   inet_aton(IPADDRESS, &si_other.sin_addr);
 #endif
 
-  int total_width = zed->getImageSize().width;
-  int total_height = zed->getImageSize().height;
+  int total_width = cam->getImageSize().width;
+  int total_height = cam->getImageSize().height;
 
   char key = ' ';
   bool run = true;
   bool calibrate = true;
-  cv::gpu::GpuMat d_hsv(zed->getImageSize().height, zed->getImageSize().width, CV_8UC4);
-  cv::gpu::GpuMat d_thresh(zed->getImageSize().height, zed->getImageSize().width, CV_8UC1);
+  cv::gpu::GpuMat d_hsv(cam->getImageSize().height, cam->getImageSize().width, CV_8UC4);
+  cv::gpu::GpuMat d_thresh(cam->getImageSize().height, cam->getImageSize().width, CV_8UC1);
   while (run) {
 
     // Grab the current images and compute the disparity
-    bool res = zed->grab(RAW);
+    bool res = cam->grab(RAW);
     try {
-      cv::Rect left = findRect(zed->retrieveImage_gpu(LEFT), d_hsv, d_thresh);
-      cv::Rect right = findRect(zed->retrieveImage_gpu(RIGHT), d_hsv, d_thresh);
-      //Mat left_img = zed->retrieveImage(LEFT);
-      //Mat right_img = zed->retrieveImage(RIGHT);
+      cv::Rect left = findRect(cam->retrieveImage_gpu(LEFT), d_hsv, d_thresh);
+      //cv::Rect right = findRect(cam->retrieveImage_gpu(RIGHT), d_hsv, d_thresh);
+      //Mat left_img = cam->retrieveImage(LEFT);
+      //Mat right_img = cam->retrieveImage(RIGHT);
       //cv::Mat left_img_cv = slMat2cvMat(left_img);
       //cv::Mat right_img_cv = slMat2cvMat(right_img);
       //cv::Rect left = findRect_cpu(left_img_cv);
       //cv::Rect right = findRect_cpu(right_img_cv);
 
-      float distance_zed = findDepthMaxConfidence(zed, left);
+#ifdef ZED
+      float distance_cam = findDepthMaxConfidence(cam, left);
+#else
+      float distance_cam = 0.;
+#endif
       float distance_img = calculateDistance(WIDTH_MM, left.width, fx);
       float distance_img_h = calculateDistance(HEIGHT_MM, left.height, fy);
 
@@ -253,14 +259,14 @@ int main(int argc, char **argv) {
 
 
       if (calibrate) {
-        std::cout << std::setprecision(0) << std::fixed << distance_zed << ", " << distance_img << ", " << distance_img_h << std::endl;
-        cv::Mat left_cv = slMat2cvMat(zed->retrieveImage(LEFT));
+        std::cout << std::setprecision(0) << std::fixed << distance_cam << ", " << distance_img << ", " << distance_img_h << std::endl;
+        cv::Mat left_cv = slMat2cvMat(cam->retrieveImage(LEFT));
         cv::Point center;
         center.x = left.x + left.width / 2.;
         center.y = left.y + left.height / 2.;
         cv::circle(left_cv, center, 10, cv::Scalar(0, 0, 255, 1), 3);
         center.y += 50;
-        cv::putText(left_cv, std::to_string(distance_zed), center,
+        cv::putText(left_cv, std::to_string(distance_cam), center,
                     CV_FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(200, 200, 200, 255),
                     2);
         center.y -= 15;
@@ -295,6 +301,6 @@ int main(int argc, char **argv) {
 #else
   close(s);
 #endif
-  delete zed;
+  delete cam;
   return 0;
 }
