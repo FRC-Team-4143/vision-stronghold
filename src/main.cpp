@@ -6,10 +6,14 @@
 #include <chrono>
 #include <iomanip>
 
+#define ZED
+#ifdef ZED
 //ZED include
 #include <zed/Mat.hpp>
 #include <zed/Camera.hpp>
 #include <zed/utils/GlobalDefine.hpp>
+using namespace sl::zed;
+#endif
 
 //OpenCV include
 #include <opencv2/core/core.hpp>
@@ -20,7 +24,9 @@
 // Cuda functions include
 #include "kernel.cuh"
 
-using namespace sl::zed;
+
+#define IPADDRESS "10.41.43.60"
+#define PORT 4143
 
 static const float HEIGHT = 12.f; // inches
 static const float HEIGHT_MM = 304.8f; // mm
@@ -42,6 +48,10 @@ static const float TEST_W = 101.6f;
 #ifdef __linux__
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#define WSAGetLastError() (errno)
+#define SOCKET_ERROR (-1)
 #else
 #pragma comment(lib,"ws2_32.lib") //Winsock Library
 #endif
@@ -197,8 +207,12 @@ int main(int argc, char **argv) {
   //setup address structure
   memset((char *)&si_other, 0, sizeof(si_other));
   si_other.sin_family = AF_INET;
-  si_other.sin_port = htons(4143);
-  si_other.sin_addr.S_un.S_addr = inet_addr("10.41.43.60");
+  si_other.sin_port = htons(PORT);
+#ifndef __linux__
+  si_other.sin_addr.S_un.S_addr = inet_addr(IPADDRESS);
+#else
+  inet_aton(IPADDRESS, &si_other.sin_addr);
+#endif
 
   int total_width = zed->getImageSize().width;
   int total_height = zed->getImageSize().height;
@@ -275,9 +289,11 @@ int main(int argc, char **argv) {
     }
   }
 
-  closesocket(s);
 #ifndef __linux__
+  closesocket(s);
   WSACleanup();
+#else
+  close(s);
 #endif
   delete zed;
   return 0;
