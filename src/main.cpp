@@ -12,7 +12,9 @@
 
 #define SHOW
 //#define SAVEFILE
-#define FINDRECT
+//#define FINDRECT
+#define CANNY
+//#define HOUGH
 
 //#define CAMSIZE 1280,480
 #define CAMSIZE 640,480
@@ -84,6 +86,33 @@ cv::Rect findRect(cv::Mat& hsv)
   //return rect;
   return cv::Rect();
   //throw std::runtime_error("No rect found.");
+}
+
+static cv::Mat drawHoughLinesOnMat (cv::gpu::GpuMat hough_Mat, cv::gpu::GpuMat houghLines)
+{
+    cv::Mat output_Mat(hough_Mat);
+    //cv::cvtColor(cv::Mat(hough_Mat), output_Mat, CV_GRAY2BGR);
+
+    std::vector<cv::Vec4i> lines_vector;
+    if (!houghLines.empty())
+    {
+        lines_vector.resize(houghLines.cols);
+        cv::Mat temp_Mat (1, houghLines.cols, CV_32SC4, &lines_vector[0]);
+        houghLines.download (temp_Mat);
+    }
+    else
+       cout << "houghLines empty" << endl;
+
+    if(!lines_vector.size())
+	cout << "lines_vector empty" << endl;
+
+    for (size_t i=0; i<lines_vector.size(); ++i)
+    {
+        cv::Vec4i l = lines_vector[i];
+        cv::line(output_Mat, cv::Point(l[0], l[1]), cv::Point(l[2], l[3]), cv::Scalar(0, 0, 255), 1, 8);
+    }
+
+    return output_Mat;
 }
 
 void sendcenter(int s, struct sockaddr_in *si_other, int slen, int center) {
@@ -175,6 +204,9 @@ int main(int argc, char const *argv[]) {
    cv::gpu::GpuMat  gpuimage(cv::Size(CAMSIZE), CV_32FC3);
    cv::gpu::GpuMat  gpuhsv(cv::Size(CAMSIZE), CV_8UC3);
    cv::gpu::GpuMat  gputhresh(cv::Size(CAMSIZE), CV_8UC1);
+   cv::gpu::GpuMat  gpuedges(cv::Size(CAMSIZE), CV_8UC1);
+   cv::gpu::GpuMat  hough_lines;
+   cv::gpu::HoughLinesBuf  hough_buffer;
    cv::Mat img = page_locked;
    cv::Mat threshold = threshpage_locked; // Image after threshold
 
@@ -184,6 +216,8 @@ int main(int argc, char const *argv[]) {
    cv::gpu::GpuMat  gpuimage2(cv::Size(CAMSIZE), CV_32FC3);
    cv::gpu::GpuMat  gpuhsv2(cv::Size(CAMSIZE), CV_8UC3);
    cv::gpu::GpuMat  gputhresh2(cv::Size(CAMSIZE), CV_8UC1);
+   cv::gpu::GpuMat  gpuedges2(cv::Size(CAMSIZE), CV_8UC1);
+   cv::gpu::HoughLinesBuf  hough_buffer2;
    cv::Mat img2 = page_locked2;
    cv::Mat threshold2 = threshpage_locked2; // Image after threshold
 
@@ -213,6 +247,20 @@ int main(int argc, char const *argv[]) {
         camera >> img2; // Grab Frame
 	stream.waitForCompletion();
 
+#ifdef CANNY
+        cv::gpu::Canny(gputhresh, gpuedges, 100, 200, 3);
+        cv::Mat cpuedges(gpuedges);
+        cv::Rect leftc = findRect(cpuedges);
+#ifdef HOUGH
+        cv::gpu::HoughLinesP(gpuedges, hough_lines, hough_buffer, 1.0f, (float)(CV_PI/180.0f), 5, 1);
+        //cv::gpu::HoughLines(gpuedges, hough_lines, 1.0f, (float)(CV_PI/180.0f), 1, true);
+        cv::Mat hough_mat = drawHoughLinesOnMat(gpuimage, hough_lines); 
+        cv::imshow("hough_mat", hough_mat);
+#endif
+	cv::rectangle(cpuedges, leftc, cv::Scalar(255));
+        cv::imshow("canny", cpuedges);
+#endif
+
 	stream.enqueueUpload(img2, gpuimage2);
 	cv::gpu::cvtColor(gpuimage2, gpuhsv2, CV_RGB2HSV, 3, stream);
 	cuInRange(gpuhsv2, gputhresh2, 60-30, 90, 90, 60+30, 255, 255, stream);
@@ -241,6 +289,13 @@ int main(int argc, char const *argv[]) {
         camera >> img; // Grab Frame
 	stream.waitForCompletion();
 
+#ifdef CANNY
+        cv::gpu::Canny(gputhresh2, gpuedges2, 100, 200, 3);
+        cv::Mat cpuedges2(gpuedges2);
+        cv::Rect rightc = findRect(cpuedges2);
+	cv::rectangle(cpuedges2, rightc, cv::Scalar(255));
+        cv::imshow("canny", cpuedges2);
+#endif
         //Check for escape to exit
         char k = (char)cv::waitKey(10);
         if (k == 27) {
