@@ -10,7 +10,7 @@
 
 #include "kernel.hpp"
 
-#define SHOW
+//#define SHOW
 //#define SAVEFILE
 //#define FINDRECT
 #define CANNY
@@ -258,7 +258,9 @@ int main(int argc, char const *argv[]) {
         cv::imshow("hough_mat", hough_mat);
 #endif
 	cv::rectangle(cpuedges, leftc, cv::Scalar(255));
+#ifdef SHOW
         cv::imshow("canny", cpuedges);
+#endif
 #endif
 
 	stream.enqueueUpload(img2, gpuimage2);
@@ -294,7 +296,9 @@ int main(int argc, char const *argv[]) {
         cv::Mat cpuedges2(gpuedges2);
         cv::Rect rightc = findRect(cpuedges2);
 	cv::rectangle(cpuedges2, rightc, cv::Scalar(255));
+#ifdef SHOW
         cv::imshow("canny", cpuedges2);
+#endif
 #endif
         //Check for escape to exit
         char k = (char)cv::waitKey(10);
