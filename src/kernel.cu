@@ -3,7 +3,7 @@
 #include <opencv2/gpu/gpumat.hpp>
 #include <opencv2/core/cuda_devptrs.hpp>
 
-__global__ void _InRange(cv::gpu::PtrStepSz<uchar3> src, cv::gpu::PtrStep<uchar> out,
+__global__ void _InRange(cv::gpu::PtrStepSz<uchar4> src, cv::gpu::PtrStep<uchar> out,
        unsigned char hue_low, unsigned char sat_low, unsigned char val_low,
        unsigned char hue_high, unsigned char sat_high, unsigned char val_high)
 {
@@ -11,7 +11,7 @@ __global__ void _InRange(cv::gpu::PtrStepSz<uchar3> src, cv::gpu::PtrStep<uchar>
   int y = threadIdx.y + blockIdx.y * blockDim.y;
   if (x < src.cols && y < src.rows)
   {
-    uchar3 v = src(y, x);
+    uchar4 v = src(y, x);
     if (v.y <= 0+50 && v.z >= 255-50)  // ignore white
 	out(y,x) = 0;
     else if (hue_low <= v.x && v.x <= hue_high &&
@@ -26,7 +26,7 @@ __global__ void _InRange(cv::gpu::PtrStepSz<uchar3> src, cv::gpu::PtrStep<uchar>
   }
 }
 
-void cuInRange_caller(const cv::gpu::PtrStepSz<uchar3>& src, cv::gpu::PtrStep<uchar> out,
+void cuInRange_caller(const cv::gpu::PtrStepSz<uchar4>& src, cv::gpu::PtrStep<uchar> out,
                unsigned char hue_low, unsigned char sat_low, unsigned char val_low,
                unsigned char hue_high, unsigned char sat_high, unsigned char val_high, cudaStream_t stream)
 {

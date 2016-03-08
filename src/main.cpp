@@ -199,10 +199,10 @@ int main(int argc, char const *argv[]) {
     vector<vector<cv::Point> > contours; // Contours vector
     vector<cv::Vec4i> hierarchy; // hierarchy of contours
 
-   cv::gpu::CudaMem page_locked(cv::Size(CAMSIZE), CV_32FC3);
+   cv::gpu::CudaMem page_locked(cv::Size(CAMSIZE), CV_32FC4);
    cv::gpu::CudaMem threshpage_locked(cv::Size(CAMSIZE), CV_8UC1);
-   cv::gpu::GpuMat  gpuimage(cv::Size(CAMSIZE), CV_32FC3);
-   cv::gpu::GpuMat  gpuhsv(cv::Size(CAMSIZE), CV_8UC3);
+   cv::gpu::GpuMat  gpuimage(cv::Size(CAMSIZE), CV_32FC4);
+   cv::gpu::GpuMat  gpuhsv(cv::Size(CAMSIZE), CV_8UC4);
    cv::gpu::GpuMat  gputhresh(cv::Size(CAMSIZE), CV_8UC1);
    cv::gpu::GpuMat  gpuedges(cv::Size(CAMSIZE), CV_8UC1);
    cv::gpu::GpuMat  hough_lines;
@@ -211,10 +211,10 @@ int main(int argc, char const *argv[]) {
    cv::Mat threshold = threshpage_locked; // Image after threshold
 
 
-   cv::gpu::CudaMem page_locked2(cv::Size(CAMSIZE), CV_32FC3);
+   cv::gpu::CudaMem page_locked2(cv::Size(CAMSIZE), CV_32FC4);
    cv::gpu::CudaMem threshpage_locked2(cv::Size(CAMSIZE), CV_8UC1);
-   cv::gpu::GpuMat  gpuimage2(cv::Size(CAMSIZE), CV_32FC3);
-   cv::gpu::GpuMat  gpuhsv2(cv::Size(CAMSIZE), CV_8UC3);
+   cv::gpu::GpuMat  gpuimage2(cv::Size(CAMSIZE), CV_32FC4);
+   cv::gpu::GpuMat  gpuhsv2(cv::Size(CAMSIZE), CV_8UC4);
    cv::gpu::GpuMat  gputhresh2(cv::Size(CAMSIZE), CV_8UC1);
    cv::gpu::GpuMat  gpuedges2(cv::Size(CAMSIZE), CV_8UC1);
    cv::gpu::HoughLinesBuf  hough_buffer2;
@@ -232,7 +232,7 @@ int main(int argc, char const *argv[]) {
         if (counter == 0) time(&start);
 
 	stream.enqueueUpload(img, gpuimage);
-	cv::gpu::cvtColor(gpuimage, gpuhsv, CV_RGB2HSV, 3, stream);
+	cv::gpu::cvtColor(gpuimage, gpuhsv, CV_RGB2HSV, 4, stream);
 	cuInRange(gpuhsv, gputhresh, 60-30, 90, 90, 60+30, 255, 255, stream);
 	stream.enqueueDownload(gputhresh, threshold);
 #ifdef FINDRECT
@@ -262,7 +262,7 @@ int main(int argc, char const *argv[]) {
 #endif
 
 	stream.enqueueUpload(img2, gpuimage2);
-	cv::gpu::cvtColor(gpuimage2, gpuhsv2, CV_RGB2HSV, 3, stream);
+	cv::gpu::cvtColor(gpuimage2, gpuhsv2, CV_RGB2HSV, 4, stream);
 	cuInRange(gpuhsv2, gputhresh2, 60-30, 90, 90, 60+30, 255, 255, stream);
 	stream.enqueueDownload(gputhresh2, threshold2);
 
