@@ -12,11 +12,10 @@ __global__ void _InRange(cv::gpu::PtrStepSz<uchar4> src, cv::gpu::PtrStep<uchar>
   if (x < src.cols && y < src.rows)
   {
     uchar4 v = src(y, x);
-    if (v.y <= 0+50 && v.z >= 255-50)  // ignore white
-	out(y,x) = 0;
-    else if (hue_low <= v.x && v.x <= hue_high &&
+    if (hue_low <= v.x && v.x <= hue_high &&
         sat_low <= v.y && v.y <= sat_high &&
-        val_low <= v.z && v.z <= val_high)
+        val_low <= v.z && v.z <= val_high &&
+        (v.y >= 0+50 && v.z <= 255-50)) // filter out white
     {
       out(y, x) = 255;
     }

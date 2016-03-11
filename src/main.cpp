@@ -12,11 +12,9 @@
 
 //#define SHOW
 //#define SAVEFILE
-//#define FINDRECT
-#define CANNY
 
-//#define CAMSIZE 1280,480
-#define CAMSIZE 640,480
+//#define CAMSIZE 1280,480 // zed
+#define CAMSIZE 640,480 // lifecam
 #define IPADDRESS "10.41.43.255"
 #define PORT 4143
 
@@ -25,13 +23,15 @@ static const float HEIGHT_MM = 304.8f; // mm
 static const float WIDTH = 20.f; // inches
 static const float WIDTH_MM = 508.f; // mm
 static const float RATIO = WIDTH / HEIGHT;
-static const float RATIO_THRESHOLD = 0.4f * RATIO;
-static const float AREA_THRESHOLD = 3000; // px^2
+static const float RATIO_THRESHOLD = 2.0f * RATIO;
+static const float AREA_THRESHOLD = 4000; // px^2
 //static const float AREA_THRESHOLD_TOP = 8000; // px^2
-static const float AREA_THRESHOLD_TOP = 15000; // px^2
-static const float HORIZ_VIEW_ANGLE_DEG = 110.f; //degrees
+static const float AREA_THRESHOLD_TOP = 10000; // px^2
+//static const float HORIZ_VIEW_ANGLE_DEG = 110.f; //degrees // zed
+static const float HORIZ_VIEW_ANGLE_DEG = 60.f; //degrees // lifecam
 static const float HORIZ_VIEW_ANGLE = HORIZ_VIEW_ANGLE_DEG * M_PI / 180.f; //radians
-static const float VERT_VIEW_ANGLE_DEG = 110.f; //degrees
+//static const float VERT_VIEW_ANGLE_DEG = 110.f; //degrees // zed
+static const float VERT_VIEW_ANGLE_DEG = 60.f; //degrees // lifecam
 static const float VERT_VIEW_ANGLE = VERT_VIEW_ANGLE_DEG * M_PI / 180.f; //radians
 
 //2'8" x 4"
@@ -54,7 +54,7 @@ using namespace std;
 #endif
 
 
-cv::Rect findRect(cv::Mat& hsv)
+cv::Rect findRect(cv::Mat& hsv, cv::Mat& img)
 {
   std::vector<std::vector<cv::Point>> contours;
   //cv::findContours(hsv, contours, CV_RETR_LIST, CV_CHAIN_APPROX_SIMPLE);
@@ -66,6 +66,9 @@ cv::Rect findRect(cv::Mat& hsv)
   bool found = false;
   for (auto& contour : contours) {
     rect = cv::boundingRect(contour);
+#ifdef SHOW
+    cv::rectangle(img, rect, cv::Scalar(0,255,0));
+#endif
     if (rect.area() > AREA_THRESHOLD && rect.area() < AREA_THRESHOLD_TOP) {
       float ratio = fabs(float(rect.width) / float(rect.height) - RATIO);
       if (ratio < RATIO_THRESHOLD && ratio < min_ratio) {
@@ -77,6 +80,9 @@ cv::Rect findRect(cv::Mat& hsv)
     }
   }
   if (found) {
+#ifdef SHOW
+    cv::rectangle(img, best_fit, cv::Scalar(0,0,255));
+#endif
     int centerx = best_fit.x + best_fit.width/2;
     int centery = best_fit.y + best_fit.height/2;
     cout << "found box x: " << centerx << " y: " << centery << " ratio: " << min_ratio << " area: " << best_area << endl;
@@ -87,11 +93,15 @@ cv::Rect findRect(cv::Mat& hsv)
   //throw std::runtime_error("No rect found.");
 }
 
-void sendcenter(int s, struct sockaddr_in *si_other, int slen, int center) {
+void sendcenter(int s, struct sockaddr_in *si_other, int slen, cv::Rect best_fit) {
+     int centerx = best_fit.x + best_fit.width/2 ;
+     int centery = best_fit.y + best_fit.height/2;
       std::stringstream message;
-      if (center != 0)
-	center = center - 320;
-      message << std::to_string(center);
+      if (centerx != 0)
+	centerx = centerx - 320;
+      if (centery != 0)
+	centery = centery - 240;
+      message << std::to_string(centerx) << " " << std::to_string(centery);
       std::cout << "sending " << message.str() << std::endl;
       if (sendto(s, message.str().c_str(), message.str().size(), 0, (struct sockaddr *) si_other, slen) == SOCKET_ERROR)
       {
@@ -111,7 +121,6 @@ int main(int argc, char const *argv[]) {
     double fps;
 
     cout << cv::getBuildInformation();
-
 
     // start networking
 
@@ -148,7 +157,6 @@ int main(int argc, char const *argv[]) {
   inet_aton(IPADDRESS, &si_other.sin_addr);
 #endif
 
-
     // Open Camera stream
     //camera.open("http://root:password@192.168.0.99/mjpg/video.mjpg"); // Used for IP
     camera.open(0); // Used for USB
@@ -177,11 +185,8 @@ int main(int argc, char const *argv[]) {
    cv::gpu::GpuMat  gpuhsv(cv::Size(CAMSIZE), CV_8UC4);
    cv::gpu::GpuMat  gputhresh(cv::Size(CAMSIZE), CV_8UC1);
    cv::gpu::GpuMat  gpuedges(cv::Size(CAMSIZE), CV_8UC1);
-   cv::gpu::GpuMat  hough_lines;
-   cv::gpu::HoughLinesBuf  hough_buffer;
    cv::Mat img = page_locked;
    cv::Mat threshold = threshpage_locked; // Image after threshold
-
 
    cv::gpu::CudaMem page_locked2(cv::Size(CAMSIZE), CV_32FC4);
    cv::gpu::CudaMem threshpage_locked2(cv::Size(CAMSIZE), CV_8UC1);
@@ -189,7 +194,6 @@ int main(int argc, char const *argv[]) {
    cv::gpu::GpuMat  gpuhsv2(cv::Size(CAMSIZE), CV_8UC4);
    cv::gpu::GpuMat  gputhresh2(cv::Size(CAMSIZE), CV_8UC1);
    cv::gpu::GpuMat  gpuedges2(cv::Size(CAMSIZE), CV_8UC1);
-   cv::gpu::HoughLinesBuf  hough_buffer2;
    cv::Mat img2 = page_locked2;
    cv::Mat threshold2 = threshpage_locked2; // Image after threshold
 
@@ -197,9 +201,12 @@ int main(int argc, char const *argv[]) {
 
     camera >> img; // Grab Frame
 
+#ifdef SAVEFILE
     const char* outFile = "./output.mjpeg";
     cv::VideoWriter outStream(outFile, CV_FOURCC('M','J','P','G'), 2, cv::Size(CAMSIZE), true );
+#endif
     
+    int count = 0;
     while (1) { 
         if (counter == 0) time(&start);
 
@@ -207,47 +214,24 @@ int main(int argc, char const *argv[]) {
 	cv::gpu::cvtColor(gpuimage, gpuhsv, CV_RGB2HSV, 4, stream);
 	cuInRange(gpuhsv, gputhresh, 60-30, 90, 90, 60+30, 255, 255, stream);
 	stream.enqueueDownload(gputhresh, threshold);
-#ifdef FINDRECT
-        cv::Rect left = findRect(threshold2);
-        sendcenter(s, &si_other, slen, left.x + left.width/2);
-	cv::rectangle(threshold2, left, cv::Scalar(255));
-#endif
-#ifdef SHOW
-        cv::imshow("Threshold", threshold2); // Show threshold view
-        cv::imshow("image", img); // Show camera view
-#endif
+
         camera >> img2; // Grab Frame
 	stream.waitForCompletion();
 
-#ifdef CANNY
         cv::gpu::Canny(gputhresh, gpuedges, 100, 200, 3);
         cv::Mat cpuedges(gpuedges);
-        cv::Rect leftc = findRect(cpuedges);
-        sendcenter(s, &si_other, slen, leftc.x + leftc.width/2);
-	cv::rectangle(cpuedges, leftc, cv::Scalar(255));
+        cv::Rect leftc = findRect(cpuedges, img);
+        sendcenter(s, &si_other, slen, leftc);
 #ifdef SHOW
-        cv::imshow("canny", cpuedges);
-#endif
+        //cv::imshow("Threshold", threshold2); // Show threshold view
+        //cv::imshow("image", img); // Show camera view
+        //cv::imshow("canny", cpuedges);
 #endif
 
 	stream.enqueueUpload(img2, gpuimage2);
 	cv::gpu::cvtColor(gpuimage2, gpuhsv2, CV_RGB2HSV, 4, stream);
 	cuInRange(gpuhsv2, gputhresh2, 60-30, 90, 90, 60+30, 255, 255, stream);
 	stream.enqueueDownload(gputhresh2, threshold2);
-
-        //cvtColor(img, hsv, COLOR_BGR2HSV);  // convert to HSV
-        //inRange(hsv, Scalar(0, 216, 220), Scalar(180, 255, 255), threshold); // Only take pixels within specified range
-        //inRange(hsv, Scalar(40, 0, 140), Scalar(255, 255, 255), threshold); // Only take pixels within specified range
-
-#ifdef FINDRECT
-        cv::Rect right = findRect(threshold);
-        sendcenter(s, &si_other, slen, right.x + right.width/2);
-	cv::rectangle(threshold, right, cv::Scalar(255));
-#endif
-#ifdef SHOW
-        cv::imshow("Threshold", threshold); // Show threshold view
-        cv::imshow("image", img2); // Show camera view
-#endif
 
 #ifdef SAVEFILE
         // MJPEG BEGIN
@@ -258,15 +242,17 @@ int main(int argc, char const *argv[]) {
         camera >> img; // Grab Frame
 	stream.waitForCompletion();
 
-#ifdef CANNY
         cv::gpu::Canny(gputhresh2, gpuedges2, 100, 200, 3);
         cv::Mat cpuedges2(gpuedges2);
-        cv::Rect rightc = findRect(cpuedges2);
-        sendcenter(s, &si_other, slen, rightc.x + rightc.width/2);
-	cv::rectangle(cpuedges2, rightc, cv::Scalar(255));
+        cv::Rect rightc = findRect(cpuedges2, img2);
+        sendcenter(s, &si_other, slen, rightc);
 #ifdef SHOW
+        if(counter % 30 == 0) {
+        cv::imshow("Threshold", threshold); // Show threshold view
+        cv::imshow("image", img2); // Show camera view
         cv::imshow("canny", cpuedges2);
-#endif
+	count = 0;
+	}
 #endif
         //Check for escape to exit
         char k = (char)cv::waitKey(10);

@@ -8,7 +8,9 @@ cd /home/ubuntu/vision-stronghold/
 
 echo "Vision program starting..."
 
-until ./bin/Vision2016 ; do
+rm visionlog.txt
+
+until ./bin/Vision2016 >> vision.log ; do
 #    if [ $? -eq 1 ]; then
 #        echo "Vision program exited with code $? (safe shutdown via signal). Closing wrapper."
 #        exit 1
