@@ -11,26 +11,16 @@ endif(COMMAND cmake_policy)
 SET(EXECUTABLE_OUTPUT_PATH "${CMAKE_CURRENT_SOURCE_DIR}/bin")
 
 IF(WIN32) # Windows
-SET(ZED_INCLUDE_DIRS $ENV{ZED_INCLUDE_DIRS})
-	if (CMAKE_CL_64) # 64 bit
-		SET(ZED_LIBRARIES $ENV{ZED_LIBRARIES_64})
-	else(CMAKE_CL_64) # 32 bit
-		message("32bits compilation is no more available with CUDA7.0")
-	endif(CMAKE_CL_64)
-SET(ZED_LIBRARY_DIR $ENV{ZED_LIBRARY_DIR})
 find_package(CUDA 7.0 REQUIRED)
 ELSE() # Linux
-find_package(ZED REQUIRED)
 find_package(CUDA 6.5 REQUIRED)
 ENDIF(WIN32)
 find_package(OpenCV 2.4 COMPONENTS core highgui imgproc features2d gpu REQUIRED)
 
-include_directories(${ZED_INCLUDE_DIRS})
 include_directories(${CUDA_INCLUDE_DIRS})
 include_directories(${OpenCV_INCLUDE_DIRS})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 
-link_directories(${ZED_LIBRARY_DIR})
 link_directories(${CUDA_LIBRARY_DIRS})
 link_directories(${OpenCV_LIBRARY_DIRS})
 link_directories(${CMAKE_CURRENT_SOURCE_DIR}/lib)
@@ -49,11 +39,18 @@ list(APPEND CUDA_NVCC_FLAGS -gencode arch=compute_50,code=sm_52)
 set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} -std=c++11)
 
 cuda_add_executable(${EXEC_NAME} ${SRC_FILES} ${SRC_CU_FOLDER})
+cuda_add_executable(${EXEC_NAME}-test ${SRC_FILES} ${SRC_CU_FOLDER})
+
+SET_TARGET_PROPERTIES(${EXEC_NAME}-test PROPERTIES COMPILE_FLAGS "-DSHOW")
 
 add_definitions(-std=c++11)
 
 TARGET_LINK_LIBRARIES(${EXEC_NAME}
-			${ZED_LIBRARIES}
+			${OpenCV_LIBRARIES}
+			${CUDA_LIBRARIES} ${CUDA_npps_LIBRARY}
+			)
+
+TARGET_LINK_LIBRARIES(${EXEC_NAME}-test
 			${OpenCV_LIBRARIES}
 			${CUDA_LIBRARIES} ${CUDA_npps_LIBRARY}
 			)
