@@ -8,11 +8,11 @@ cd /home/ubuntu/vision-stronghold/
 
 echo "Vision program starting..."
 
-rm visionlog.txt4
-mv visionlog.txt3 visionlog.txt4
-mv visionlog.txt2 visionlog.txt3
-mv visionlog.txt1 visionlog.txt2
-mv visionlog.txt visionlog.txt1
+rm vision.log4
+mv vision.log3 vision.log4
+mv vision.log2 vision.log3
+mv vision.log1 vision.log2
+mv vision.log vision.log1
 
 until ./bin/Vision2016 >> vision.log ; do
 #    if [ $? -eq 1 ]; then
