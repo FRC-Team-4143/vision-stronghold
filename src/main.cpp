@@ -17,6 +17,7 @@
 #define CAMSIZE 640,480 // lifecam
 #define IPADDRESS "10.41.43.255"
 #define PORT 4143
+#define GREENDIST 30
 
 static const float HEIGHT = 12.f; // inches
 static const float HEIGHT_MM = 304.8f; // mm
@@ -227,7 +228,7 @@ int main(int argc, char const *argv[]) {
 
 	stream.enqueueUpload(img, gpuimage);
 	cv::gpu::cvtColor(gpuimage, gpuhsv, CV_RGB2HSV, 4, stream);
-	cuInRange(gpuhsv, gputhresh, 60-30, 90, 90, 60+30, 255, 255, stream);
+	cuInRange(gpuhsv, gputhresh, 60-GREENDIST, 50, 50, 60+GREENDIST, 255, 255, stream);
 	stream.enqueueDownload(gputhresh, threshold);
 
         camera >> img2; // Grab Frame
@@ -245,7 +246,7 @@ int main(int argc, char const *argv[]) {
 
 	stream.enqueueUpload(img2, gpuimage2);
 	cv::gpu::cvtColor(gpuimage2, gpuhsv2, CV_RGB2HSV, 4, stream);
-	cuInRange(gpuhsv2, gputhresh2, 60-30, 90, 90, 60+30, 255, 255, stream);
+	cuInRange(gpuhsv2, gputhresh2, 60-GREENDIST, 50, 50, 60+GREENDIST, 255, 255, stream);
 	stream.enqueueDownload(gputhresh2, threshold2);
 
 #ifdef SAVEFILE

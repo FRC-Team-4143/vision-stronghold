@@ -11,5 +11,5 @@ echo 'exposure auto'
 uvcdynctrl --set='Exposure, Auto' 1
 echo 'exposure'
 #uvcdynctrl --set='Exposure (Absolute)' 5  # very dark
-#uvcdynctrl --set='Exposure (Absolute)' 10  # full sunlight
-uvcdynctrl --set='Exposure (Absolute)' 20  # afternoon
+uvcdynctrl --set='Exposure (Absolute)' 10  # full sunlight
+#uvcdynctrl --set='Exposure (Absolute)' 20  # afternoon
