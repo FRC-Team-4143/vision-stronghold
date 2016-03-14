@@ -24,7 +24,7 @@ static const float WIDTH = 20.f; // inches
 static const float WIDTH_MM = 508.f; // mm
 static const float RATIO = WIDTH / HEIGHT;
 static const float RATIO_THRESHOLD = 2.0f * RATIO;
-static const float AREA_THRESHOLD = 4000; // px^2
+static const float AREA_THRESHOLD = 3500; // px^2
 //static const float AREA_THRESHOLD_TOP = 8000; // px^2
 static const float AREA_THRESHOLD_TOP = 10000; // px^2
 //static const float HORIZ_VIEW_ANGLE_DEG = 110.f; //degrees // zed
@@ -60,6 +60,7 @@ cv::Rect findRect(cv::Mat& hsv, cv::Mat& img)
   //cv::findContours(hsv, contours, CV_RETR_LIST, CV_CHAIN_APPROX_SIMPLE);
   cv::findContours(hsv, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
   float min_ratio = 1000.f;
+  int min_dist_from_center = 1000;
   float best_area;
   cv::Rect best_fit;
   cv::Rect rect;
@@ -69,14 +70,28 @@ cv::Rect findRect(cv::Mat& hsv, cv::Mat& img)
 #ifdef SHOW
     cv::rectangle(img, rect, cv::Scalar(0,255,0));
 #endif
+
     if (rect.area() > AREA_THRESHOLD && rect.area() < AREA_THRESHOLD_TOP) {
-      float ratio = fabs(float(rect.width) / float(rect.height) - RATIO);
+    float ratio = fabs(float(rect.width) / float(rect.height) - RATIO);
+    if (ratio < RATIO_THRESHOLD /*&& ratio < min_ratio*/) {
+      int centerx = abs(best_fit.x + best_fit.width/2 - 320);
+      if ( centerx < min_dist_from_center ) {
+         best_area = rect.area();
+         min_ratio = ratio;
+         min_dist_from_center = centerx;
+         best_fit = rect;
+         found = true;
+      }
+
+/*
       if (ratio < RATIO_THRESHOLD && ratio < min_ratio) {
         best_area = rect.area();
         min_ratio = ratio;
         best_fit = rect;
         found = true;
       }
+*/
+    }
     }
   }
   if (found) {
