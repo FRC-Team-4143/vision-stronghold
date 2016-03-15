@@ -75,7 +75,7 @@ cv::Rect findRect(cv::Mat& hsv, cv::Mat& img)
     if (rect.area() > AREA_THRESHOLD && rect.area() < AREA_THRESHOLD_TOP) {
     float ratio = fabs(float(rect.width) / float(rect.height) - RATIO);
     if (ratio < RATIO_THRESHOLD /*&& ratio < min_ratio*/) {
-      int centerx = abs(best_fit.x + best_fit.width/2 - 320);
+      int centerx = rect.x + rect.width/2;
       if ( centerx < min_dist_from_center ) {
          best_area = rect.area();
          min_ratio = ratio;
