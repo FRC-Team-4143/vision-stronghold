@@ -21,4 +21,5 @@ until ./bin/Vision2016 >> vision.log ; do
 #    fi
     echo "Vision program crashed with code $?. Respawning..."
     sleep 1
+    ./scripts/camerasettings.sh
 done
