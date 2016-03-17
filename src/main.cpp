@@ -15,7 +15,8 @@
 
 //#define CAMSIZE 1280,480 // zed
 #define CAMSIZE 640,480 // lifecam
-#define IPADDRESS "10.41.43.255"
+//#define IPADDRESS "10.41.43.255"
+#define IPADDRESS "10.255.255.255"
 #define PORT 4143
 #define GREENDIST 30
 
@@ -27,7 +28,7 @@ static const float RATIO = WIDTH / HEIGHT;
 static const float RATIO_THRESHOLD = 2.0f * RATIO;
 static const float AREA_THRESHOLD = 3500; // px^2
 //static const float AREA_THRESHOLD_TOP = 8000; // px^2
-static const float AREA_THRESHOLD_TOP = 10000; // px^2
+static const float AREA_THRESHOLD_TOP = 16000; // px^2
 //static const float HORIZ_VIEW_ANGLE_DEG = 110.f; //degrees // zed
 static const float HORIZ_VIEW_ANGLE_DEG = 60.f; //degrees // lifecam
 static const float HORIZ_VIEW_ANGLE = HORIZ_VIEW_ANGLE_DEG * M_PI / 180.f; //radians
@@ -72,8 +73,10 @@ cv::Rect findRect(cv::Mat& hsv, cv::Mat& img)
     cv::rectangle(img, rect, cv::Scalar(0,255,0));
 #endif
 
+    //cout << " area "  << rect.area();
     if (rect.area() > AREA_THRESHOLD && rect.area() < AREA_THRESHOLD_TOP) {
     float ratio = fabs(float(rect.width) / float(rect.height) - RATIO);
+    //cout << "ratio : " << ratio ;
     if (ratio < RATIO_THRESHOLD /*&& ratio < min_ratio*/) {
       int centerx = rect.x + rect.width/2;
       if ( centerx < min_dist_from_center ) {
