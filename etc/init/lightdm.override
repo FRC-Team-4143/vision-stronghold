@@ -1,1 +1,1 @@
-lightdm.override
+/etc/init/lightdm.override

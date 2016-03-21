@@ -1,1 +1,1 @@
-network-manager.override
+/etc/init/network-manager.override
