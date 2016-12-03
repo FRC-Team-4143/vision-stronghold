@@ -3,6 +3,8 @@ project(Vision2016)
 
 SET(EXEC_NAME Vision2016)
 
+SET(CUDA_USE_STATIC_CUDA_RUNTIME OFF)
+
 if(COMMAND cmake_policy)
 	cmake_policy(SET CMP0003 OLD)
 	cmake_policy(SET CMP0015 OLD)  
@@ -30,12 +32,13 @@ FILE(GLOB_RECURSE SRC_FILES "${SRC_FOLDER}/*.cpp")
 FILE(GLOB_RECURSE SRC_CU_FOLDER "${SRC_FOLDER}/*.cu")
 
 
-list(APPEND CUDA_NVCC_FLAGS -gencode arch=compute_20,code=sm_20)
-list(APPEND CUDA_NVCC_FLAGS -gencode arch=compute_20,code=sm_21)
+#list(APPEND CUDA_NVCC_FLAGS -gencode arch=compute_20,code=sm_20)
+#list(APPEND CUDA_NVCC_FLAGS -gencode arch=compute_20,code=sm_21)
 list(APPEND CUDA_NVCC_FLAGS -gencode arch=compute_30,code=sm_30)
 list(APPEND CUDA_NVCC_FLAGS -gencode arch=compute_30,code=sm_35)
 list(APPEND CUDA_NVCC_FLAGS -gencode arch=compute_50,code=sm_50)
 list(APPEND CUDA_NVCC_FLAGS -gencode arch=compute_50,code=sm_52)
+list(APPEND CUDA_NVCC_FLAGS -gencode arch=compute_53,code=sm_53)
 set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} -std=c++11)
 
 cuda_add_executable(${EXEC_NAME} ${SRC_FILES} ${SRC_CU_FOLDER})
