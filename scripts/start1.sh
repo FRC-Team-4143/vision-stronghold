@@ -8,13 +8,13 @@ cd /home/ubuntu/vision-stronghold/
 
 echo "Vision program starting..."
 
-rm vision.log4
-mv vision.log3 vision.log4
-mv vision.log2 vision.log3
-mv vision.log1 vision.log2
-mv vision.log vision.log1
+rm vision1.log4
+mv vision1.log3 vision1.log4
+mv vision1.log2 vision1.log3
+mv vision1.log1 vision1.log2
+mv vision1.log vision1.log1
 
-until ./bin/Vision2017 >> vision.log ; do
+until ./bin/Vision2017-gear >> vision1.log ; do
 #    if [ $? -eq 1 ]; then
 #        echo "Vision program exited with code $? (safe shutdown via signal). Closing wrapper."
 #        exit 1

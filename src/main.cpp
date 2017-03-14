@@ -26,7 +26,8 @@ static const float WIDTH = 20.f; // inches
 static const float WIDTH_MM = 508.f; // mm
 static const float RATIO = WIDTH / HEIGHT;
 static const float RATIO_THRESHOLD = 2.0f * RATIO;
-static const float AREA_THRESHOLD = 3500; // px^2
+// 2016 static const float AREA_THRESHOLD = 3500; // px^2
+static const float AREA_THRESHOLD = 1000; // px^2
 //static const float AREA_THRESHOLD_TOP = 8000; // px^2
 static const float AREA_THRESHOLD_TOP = 16000; // px^2
 //static const float HORIZ_VIEW_ANGLE_DEG = 110.f; //degrees // zed
@@ -39,7 +40,6 @@ static const float VERT_VIEW_ANGLE = VERT_VIEW_ANGLE_DEG * M_PI / 180.f; //radia
 //2'8" x 4"
 static const float TEST_H = 812.8f;
 static const float TEST_W = 101.6f;
-
 
 using namespace std;
 
@@ -55,16 +55,52 @@ using namespace std;
 #pragma comment(lib,"ws2_32.lib") //Winsock Library
 #endif
 
+struct sockaddr_in si_other;
+int s, slen;
+
+void sendcenter(int s, struct sockaddr_in *si_other, int slen, cv::Rect best_fit, cv::Rect best_fit2) {
+     int centerx = best_fit.x + best_fit.width/2 ;
+     int centery = best_fit.y + best_fit.height/2;
+     int center2x = best_fit2.x + best_fit2.width/2 ;
+     int center2y = best_fit2.y + best_fit2.height/2;
+      std::stringstream message;
+      if (centerx != 0)
+	centerx = centerx - 320;
+      if (centery != 0)
+	centery = centery - 240;
+      if (center2x != 0)
+	center2x = center2x - 320;
+      if (center2y != 0)
+	center2y = center2y - 240;
+      message << std::to_string(centerx) << " " << std::to_string(centery) << 
+         " " << std::to_string(center2x) << " " << std::to_string(center2y) << 
+#ifdef GEAR
+    " 1";
+#elif GEAR2
+    " 2";
+#else
+    " 0";
+#endif
+      std::cout << "sending " << message.str() << std::endl;
+      if (sendto(s, message.str().c_str(), message.str().size(), 0, (struct sockaddr *) si_other, slen) == SOCKET_ERROR)
+      {
+        std::cout << "sendto() failed with error code : " << WSAGetLastError() << endl;
+        //exit(EXIT_FAILURE);
+      }
+}
 
 cv::Rect findRect(cv::Mat& hsv, cv::Mat& img)
 {
   std::vector<std::vector<cv::Point>> contours;
   //cv::findContours(hsv, contours, CV_RETR_LIST, CV_CHAIN_APPROX_SIMPLE);
   cv::findContours(hsv, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
-  float min_ratio = 1000.f;
-  int min_dist_from_center = 1000;
-  float best_area;
+  //float min_ratio = 1000.f;
+  //int min_dist_from_center = 1000;
+  float best_area = 0;
+  float best_area2 = 0;
+  float area;
   cv::Rect best_fit;
+  cv::Rect best_fit2;
   cv::Rect rect;
   bool found = false;
   for (auto& contour : contours) {
@@ -73,19 +109,35 @@ cv::Rect findRect(cv::Mat& hsv, cv::Mat& img)
     cv::rectangle(img, rect, cv::Scalar(0,255,0));
 #endif
 
-    //cout << " area "  << rect.area();
-    if (rect.area() > AREA_THRESHOLD && rect.area() < AREA_THRESHOLD_TOP) {
-    float ratio = fabs(float(rect.width) / float(rect.height) - RATIO);
+    area = rect.area();
+
+
+    if ( area > best_area && area > AREA_THRESHOLD) {
+       best_fit2 = best_fit;
+       best_area2 = best_area;
+   
+       best_fit = rect;
+       best_area = area;
+       found = true;
+       cout << " area "  << area;
+    } else if ( area > best_area2  && area > AREA_THRESHOLD) {
+       best_fit2 = rect;
+       best_area2 = area;
+    }
+    
+
+    //if (rect.area() > AREA_THRESHOLD && rect.area() < AREA_THRESHOLD_TOP) {
+    //float ratio = fabs(float(rect.width) / float(rect.height) - RATIO);
     //cout << "ratio : " << ratio ;
-    if (ratio < RATIO_THRESHOLD /*&& ratio < min_ratio*/) {
-      int centerx = rect.x + rect.width/2;
-      if ( centerx < min_dist_from_center ) {
-         best_area = rect.area();
-         min_ratio = ratio;
-         min_dist_from_center = centerx;
-         best_fit = rect;
-         found = true;
-      }
+    //if (ratio < RATIO_THRESHOLD /*&& ratio < min_ratio*/) {
+    //  int centerx = rect.x + rect.width/2;
+    //  if ( centerx < min_dist_from_center ) {
+    //     best_area = rect.area();
+    //     min_ratio = ratio;
+    //     min_dist_from_center = centerx;
+    //     best_fit = rect;
+    //     found = true;
+    //  }
 
 /*
       if (ratio < RATIO_THRESHOLD && ratio < min_ratio) {
@@ -95,38 +147,23 @@ cv::Rect findRect(cv::Mat& hsv, cv::Mat& img)
         found = true;
       }
 */
-    }
-    }
+  //  }
   }
   if (found) {
 #ifdef SHOW
     cv::rectangle(img, best_fit, cv::Scalar(0,0,255));
+    cv::rectangle(img, best_fit2, cv::Scalar(255,0,0));
 #endif
     int centerx = best_fit.x + best_fit.width/2;
     int centery = best_fit.y + best_fit.height/2;
-    cout << "found box x: " << centerx << " y: " << centery << " ratio: " << min_ratio << " area: " << best_area << endl;
+    sendcenter(s, &si_other, slen, best_fit, best_fit2);
+    //cout << "found box x: " << centerx << " y: " << centery << " ratio: " << min_ratio << " area: " << best_area << endl;
     return best_fit;
   }
   //return rect;
+  sendcenter(s, &si_other, slen, cv::Rect(), cv::Rect());
   return cv::Rect();
   //throw std::runtime_error("No rect found.");
-}
-
-void sendcenter(int s, struct sockaddr_in *si_other, int slen, cv::Rect best_fit) {
-     int centerx = best_fit.x + best_fit.width/2 ;
-     int centery = best_fit.y + best_fit.height/2;
-      std::stringstream message;
-      if (centerx != 0)
-	centerx = centerx - 320;
-      if (centery != 0)
-	centery = centery - 240;
-      message << std::to_string(centerx) << " " << std::to_string(centery);
-      std::cout << "sending " << message.str() << std::endl;
-      if (sendto(s, message.str().c_str(), message.str().size(), 0, (struct sockaddr *) si_other, slen) == SOCKET_ERROR)
-      {
-        std::cout << "sendto() failed with error code : " << WSAGetLastError() << endl;
-        //exit(EXIT_FAILURE);
-      }
 }
 
 
@@ -154,8 +191,9 @@ int main(int argc, char const *argv[]) {
   }
   printf("Initialised.\n");
 #endif
-  struct sockaddr_in si_other;
-  int s, slen = sizeof(si_other);
+  //struct sockaddr_in si_other;
+  s = sizeof(si_other);
+  slen = sizeof(si_other);
 
   //create socket
   if ((s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == SOCKET_ERROR) {
@@ -178,7 +216,13 @@ int main(int argc, char const *argv[]) {
 
     // Open Camera stream
     //camera.open("http://root:password@192.168.0.99/mjpg/video.mjpg"); // Used for IP
+#ifdef GEAR
+    camera.open(1); // Used for USB
+#elif GEAR2
+    camera.open(2); // Used for USB
+#else
     camera.open(0); // Used for USB
+#endif
     //camera.set(CV_CAP_PROP_FPS,100); doesn't work
 
     // Check if the camera is open
@@ -240,7 +284,7 @@ int main(int argc, char const *argv[]) {
         cv::gpu::Canny(gputhresh, gpuedges, 100, 200, 3);
         cv::Mat cpuedges(gpuedges);
         cv::Rect leftc = findRect(cpuedges, img);
-        sendcenter(s, &si_other, slen, leftc);
+        //sendcenter(s, &si_other, slen, leftc);
 #ifdef SHOW
         //cv::imshow("Threshold", threshold2); // Show threshold view
         //cv::imshow("image", img); // Show camera view
@@ -264,7 +308,7 @@ int main(int argc, char const *argv[]) {
         cv::gpu::Canny(gputhresh2, gpuedges2, 100, 200, 3);
         cv::Mat cpuedges2(gpuedges2);
         cv::Rect rightc = findRect(cpuedges2, img2);
-        sendcenter(s, &si_other, slen, rightc);
+        //sendcenter(s, &si_other, slen, rightc);
 #ifdef SHOW
         if(counter % 30 == 0) {
         cv::imshow("Threshold", threshold); // Show threshold view
