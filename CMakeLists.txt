@@ -1,7 +1,7 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 2.4)
-project(Vision2017)
+project(Vision2019)
 
-SET(EXEC_NAME Vision2017)
+SET(EXEC_NAME Vision2019)
 
 SET(CUDA_USE_STATIC_CUDA_RUNTIME OFF)
 
@@ -15,13 +15,11 @@ SET(EXECUTABLE_OUTPUT_PATH "${CMAKE_CURRENT_SOURCE_DIR}/bin")
 IF(WIN32) # Windows
 find_package(CUDA 7.0 REQUIRED)
 ELSE() # Linux
-find_package(ZED REQUIRED)
 find_package(CUDA 6.5 REQUIRED)
 ENDIF(WIN32)
-find_package(OpenCV 2.4 COMPONENTS core highgui imgproc features2d gpu REQUIRED)
+find_package(OpenCV COMPONENTS core highgui imgproc features2d cudafeatures2d cudaimgproc cudafilters REQUIRED)
 
 include_directories(${CUDA_INCLUDE_DIRS})
-include_directories(${ZED_INCLUDE_DIRS})
 include_directories(${OpenCV_INCLUDE_DIRS})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 
@@ -46,54 +44,48 @@ set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} -std=c++11)
 
 cuda_add_executable(${EXEC_NAME} ${SRC_FILES} ${SRC_CU_FOLDER})
 cuda_add_executable(${EXEC_NAME}-test ${SRC_FILES} ${SRC_CU_FOLDER})
-cuda_add_executable(${EXEC_NAME}-gear-test ${SRC_FILES} ${SRC_CU_FOLDER})
-cuda_add_executable(${EXEC_NAME}-gear ${SRC_FILES} ${SRC_CU_FOLDER})
-cuda_add_executable(${EXEC_NAME}-gear2-test ${SRC_FILES} ${SRC_CU_FOLDER})
-cuda_add_executable(${EXEC_NAME}-gear2 ${SRC_FILES} ${SRC_CU_FOLDER})
+#cuda_add_executable(${EXEC_NAME}-gear-test ${SRC_FILES} ${SRC_CU_FOLDER})
+#cuda_add_executable(${EXEC_NAME}-gear ${SRC_FILES} ${SRC_CU_FOLDER})
+#cuda_add_executable(${EXEC_NAME}-gear2-test ${SRC_FILES} ${SRC_CU_FOLDER})
+#cuda_add_executable(${EXEC_NAME}-gear2 ${SRC_FILES} ${SRC_CU_FOLDER})
 
 SET_TARGET_PROPERTIES(${EXEC_NAME}-test PROPERTIES COMPILE_FLAGS "-DSHOW")
-SET_TARGET_PROPERTIES(${EXEC_NAME}-gear PROPERTIES COMPILE_FLAGS "-DGEAR")
-SET_TARGET_PROPERTIES(${EXEC_NAME}-gear-test PROPERTIES COMPILE_FLAGS "-DGEAR -DSHOW")
-SET_TARGET_PROPERTIES(${EXEC_NAME}-gear2 PROPERTIES COMPILE_FLAGS "-DGEAR2")
-SET_TARGET_PROPERTIES(${EXEC_NAME}-gear2-test PROPERTIES COMPILE_FLAGS "-DGEAR2 -DSHOW")
+#SET_TARGET_PROPERTIES(${EXEC_NAME}-gear PROPERTIES COMPILE_FLAGS "-DGEAR")
+#SET_TARGET_PROPERTIES(${EXEC_NAME}-gear-test PROPERTIES COMPILE_FLAGS "-DGEAR -DSHOW")
+#SET_TARGET_PROPERTIES(${EXEC_NAME}-gear2 PROPERTIES COMPILE_FLAGS "-DGEAR2")
+#SET_TARGET_PROPERTIES(${EXEC_NAME}-gear2-test PROPERTIES COMPILE_FLAGS "-DGEAR2 -DSHOW")
 
 
 add_definitions(-std=c++11)
 
 TARGET_LINK_LIBRARIES(${EXEC_NAME}
-                        ${ZED_LIBRARIES}
 			${OpenCV_LIBRARIES}
 			${CUDA_LIBRARIES} ${CUDA_npps_LIBRARY}
 			)
 
 TARGET_LINK_LIBRARIES(${EXEC_NAME}-test
-                        ${ZED_LIBRARIES}
 			${OpenCV_LIBRARIES}
 			${CUDA_LIBRARIES} ${CUDA_npps_LIBRARY}
 			)
 
-TARGET_LINK_LIBRARIES(${EXEC_NAME}-gear-test
-                        ${ZED_LIBRARIES}
-			${OpenCV_LIBRARIES}
-			${CUDA_LIBRARIES} ${CUDA_npps_LIBRARY}
-			)
-
-TARGET_LINK_LIBRARIES(${EXEC_NAME}-gear
-                        ${ZED_LIBRARIES}
-			${OpenCV_LIBRARIES}
-			${CUDA_LIBRARIES} ${CUDA_npps_LIBRARY}
-			)
-
-TARGET_LINK_LIBRARIES(${EXEC_NAME}-gear2-test
-                        ${ZED_LIBRARIES}
-			${OpenCV_LIBRARIES}
-			${CUDA_LIBRARIES} ${CUDA_npps_LIBRARY}
-			)
-
-TARGET_LINK_LIBRARIES(${EXEC_NAME}-gear2
-                        ${ZED_LIBRARIES}
-			${OpenCV_LIBRARIES}
-			${CUDA_LIBRARIES} ${CUDA_npps_LIBRARY}
-			)
+#TARGET_LINK_LIBRARIES(${EXEC_NAME}-gear-test
+#			${OpenCV_LIBRARIES}
+#			${CUDA_LIBRARIES} ${CUDA_npps_LIBRARY}
+#			)
+#
+#TARGET_LINK_LIBRARIES(${EXEC_NAME}-gear
+#			${OpenCV_LIBRARIES}
+#			${CUDA_LIBRARIES} ${CUDA_npps_LIBRARY}
+#			)
+#
+#TARGET_LINK_LIBRARIES(${EXEC_NAME}-gear2-test
+#			${OpenCV_LIBRARIES}
+#			${CUDA_LIBRARIES} ${CUDA_npps_LIBRARY}
+#			)
+#
+#TARGET_LINK_LIBRARIES(${EXEC_NAME}-gear2
+##			${OpenCV_LIBRARIES}
+#			${CUDA_LIBRARIES} ${CUDA_npps_LIBRARY}
+#			)
 
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O3" )

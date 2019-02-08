@@ -1,8 +1,9 @@
 //Includes
 #include <opencv2/core/core.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/highgui/highgui.hpp>
-#include <opencv2/gpu/gpu.hpp>
+#include <opencv2/imgproc.hpp>
+#include <opencv2/highgui.hpp>
+#include <opencv2/core/cuda.hpp>
+#include <opencv2/cudaimgproc.hpp>
 #include <stdio.h>
 #include <iostream>
 #include <time.h>
@@ -13,7 +14,6 @@
 //#define SHOW
 //#define SAVEFILE
 
-//#define CAMSIZE 1280,480 // zed
 #define CAMSIZE 640,480 // lifecam
 //#define IPADDRESS "10.41.43.255"
 #define IPADDRESS "10.255.255.255"
@@ -30,10 +30,8 @@ static const float RATIO_THRESHOLD = 2.0f * RATIO;
 static const float AREA_THRESHOLD = 1000; // px^2
 //static const float AREA_THRESHOLD_TOP = 8000; // px^2
 static const float AREA_THRESHOLD_TOP = 16000; // px^2
-//static const float HORIZ_VIEW_ANGLE_DEG = 110.f; //degrees // zed
 static const float HORIZ_VIEW_ANGLE_DEG = 60.f; //degrees // lifecam
 static const float HORIZ_VIEW_ANGLE = HORIZ_VIEW_ANGLE_DEG * M_PI / 180.f; //radians
-//static const float VERT_VIEW_ANGLE_DEG = 110.f; //degrees // zed
 static const float VERT_VIEW_ANGLE_DEG = 60.f; //degrees // lifecam
 static const float VERT_VIEW_ANGLE = VERT_VIEW_ANGLE_DEG * M_PI / 180.f; //radians
 
@@ -44,16 +42,12 @@ static const float TEST_W = 101.6f;
 using namespace std;
 
 
-#ifdef __linux__
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #define WSAGetLastError() (errno)
 #define SOCKET_ERROR (-1)
-#else
-#pragma comment(lib,"ws2_32.lib") //Winsock Library
-#endif
 
 struct sockaddr_in si_other;
 int s, slen;
@@ -92,8 +86,7 @@ void sendcenter(int s, struct sockaddr_in *si_other, int slen, cv::Rect best_fit
 cv::Rect findRect(cv::Mat& hsv, cv::Mat& img)
 {
   std::vector<std::vector<cv::Point>> contours;
-  //cv::findContours(hsv, contours, CV_RETR_LIST, CV_CHAIN_APPROX_SIMPLE);
-  cv::findContours(hsv, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
+  cv::findContours(hsv, contours, CV_RETR_LIST, CV_CHAIN_APPROX_SIMPLE);
   //float min_ratio = 1000.f;
   //int min_dist_from_center = 1000;
   float best_area = 0;
@@ -178,19 +171,6 @@ int main(int argc, char const *argv[]) {
 
     cout << cv::getBuildInformation();
 
-    // start networking
-
-#ifndef __linux__
-  WSADATA wsa;
-  //Initialise winsock
-  printf("\nInitialising Winsock...");
-  if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0)
-  {
-    printf("Failed. Error Code : %d", WSAGetLastError());
-    exit(EXIT_FAILURE);
-  }
-  printf("Initialised.\n");
-#endif
   //struct sockaddr_in si_other;
   s = sizeof(si_other);
   slen = sizeof(si_other);
@@ -208,11 +188,7 @@ int main(int argc, char const *argv[]) {
   memset((char *)&si_other, 0, sizeof(si_other));
   si_other.sin_family = AF_INET;
   si_other.sin_port = htons(PORT);
-#ifndef __linux__
-  si_other.sin_addr.S_un.S_addr = inet_addr(IPADDRESS);
-#else
   inet_aton(IPADDRESS, &si_other.sin_addr);
-#endif
 
     // Open Camera stream
     //camera.open("http://root:password@192.168.0.99/mjpg/video.mjpg"); // Used for IP
@@ -236,31 +212,16 @@ int main(int argc, char const *argv[]) {
 #endif
     
     cv::Mat hsv; // Image after translating to HSV
-    //cv::Mat cannyO; // Image after canny edge detection
-    //cv::Mat contourDrawing; // Image after Contours have been drawn on it
 
     vector<vector<cv::Point> > contours; // Contours vector
-    vector<cv::Vec4i> hierarchy; // hierarchy of contours
 
-   cv::gpu::CudaMem page_locked(cv::Size(CAMSIZE), CV_32FC4);
-   cv::gpu::CudaMem threshpage_locked(cv::Size(CAMSIZE), CV_8UC1);
-   cv::gpu::GpuMat  gpuimage(cv::Size(CAMSIZE), CV_32FC4);
-   cv::gpu::GpuMat  gpuhsv(cv::Size(CAMSIZE), CV_8UC4);
-   cv::gpu::GpuMat  gputhresh(cv::Size(CAMSIZE), CV_8UC1);
-   cv::gpu::GpuMat  gpuedges(cv::Size(CAMSIZE), CV_8UC1);
-   cv::Mat img = page_locked;
-   cv::Mat threshold = threshpage_locked; // Image after threshold
-
-   cv::gpu::CudaMem page_locked2(cv::Size(CAMSIZE), CV_32FC4);
-   cv::gpu::CudaMem threshpage_locked2(cv::Size(CAMSIZE), CV_8UC1);
-   cv::gpu::GpuMat  gpuimage2(cv::Size(CAMSIZE), CV_32FC4);
-   cv::gpu::GpuMat  gpuhsv2(cv::Size(CAMSIZE), CV_8UC4);
-   cv::gpu::GpuMat  gputhresh2(cv::Size(CAMSIZE), CV_8UC1);
-   cv::gpu::GpuMat  gpuedges2(cv::Size(CAMSIZE), CV_8UC1);
-   cv::Mat img2 = page_locked2;
-   cv::Mat threshold2 = threshpage_locked2; // Image after threshold
-
-   cv::gpu::Stream stream;
+   cv::cuda::GpuMat  gpuimage(cv::Size(CAMSIZE), CV_32FC4);
+   cv::cuda::GpuMat  gpuhsv(cv::Size(CAMSIZE), CV_8UC4);
+   cv::cuda::GpuMat  gputhresh(cv::Size(CAMSIZE), CV_8UC1);
+   cv::cuda::GpuMat  gpuedges(cv::Size(CAMSIZE), CV_8UC1);
+   cv::Mat img; 
+   cv::Mat threshold; // Image after threshold
+   cv::Ptr<cv::cuda::CannyEdgeDetector> canny_edg = cv::cuda::createCannyEdgeDetector(100.0, 200.0, 3, false);
 
     camera >> img; // Grab Frame
 
@@ -273,28 +234,17 @@ int main(int argc, char const *argv[]) {
     while (1) { 
         if (counter == 0) time(&start);
 
-	stream.enqueueUpload(img, gpuimage);
-	cv::gpu::cvtColor(gpuimage, gpuhsv, CV_RGB2HSV, 4, stream);
-	cuInRange(gpuhsv, gputhresh, 60-GREENDIST, 50, 50, 60+GREENDIST, 255, 255, stream);
-	stream.enqueueDownload(gputhresh, threshold);
+        gpuimage.upload(img);
+	cv::cuda::cvtColor(gpuimage, gpuhsv, CV_RGB2HSV, 4);
+	cuInRange(gpuhsv, gputhresh, 60-GREENDIST, 50, 50, 60+GREENDIST, 255, 255);
+        gputhresh.download(threshold);
 
-        camera >> img2; // Grab Frame
-	stream.waitForCompletion();
 
-        cv::gpu::Canny(gputhresh, gpuedges, 100, 200, 3);
+        canny_edg->detect(gputhresh, gpuedges);
+        //cv::cuda::Canny(gputhresh, gpuedges, 100, 200, 3);
         cv::Mat cpuedges(gpuedges);
         cv::Rect leftc = findRect(cpuedges, img);
-        //sendcenter(s, &si_other, slen, leftc);
-#ifdef SHOW
-        //cv::imshow("Threshold", threshold2); // Show threshold view
-        //cv::imshow("image", img); // Show camera view
-        //cv::imshow("canny", cpuedges);
-#endif
 
-	stream.enqueueUpload(img2, gpuimage2);
-	cv::gpu::cvtColor(gpuimage2, gpuhsv2, CV_RGB2HSV, 4, stream);
-	cuInRange(gpuhsv2, gputhresh2, 60-GREENDIST, 50, 50, 60+GREENDIST, 255, 255, stream);
-	stream.enqueueDownload(gputhresh2, threshold2);
 
 #ifdef SAVEFILE
         // MJPEG BEGIN
@@ -303,18 +253,13 @@ int main(int argc, char const *argv[]) {
 #endif
 
         camera >> img; // Grab Frame
-	stream.waitForCompletion();
 
-        cv::gpu::Canny(gputhresh2, gpuedges2, 100, 200, 3);
-        cv::Mat cpuedges2(gpuedges2);
-        cv::Rect rightc = findRect(cpuedges2, img2);
-        //sendcenter(s, &si_other, slen, rightc);
 #ifdef SHOW
         if(counter % 30 == 0) {
-        cv::imshow("Threshold", threshold); // Show threshold view
-        cv::imshow("image", img2); // Show camera view
-        cv::imshow("canny", cpuedges2);
-	count = 0;
+		cv::imshow("image", img); // Show camera view
+		cv::imshow("canny", cpuedges);
+		cv::imshow("Threshold", threshold); // Show threshold view
+		count = 0;
 	}
 #endif
         //Check for escape to exit

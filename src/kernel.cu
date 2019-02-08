@@ -1,9 +1,8 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
-#include <opencv2/gpu/gpumat.hpp>
-#include <opencv2/core/cuda_devptrs.hpp>
+#include <opencv2/core/cuda.hpp>
 
-__global__ void _InRange(cv::gpu::PtrStepSz<uchar4> src, cv::gpu::PtrStep<uchar> out,
+__global__ void _InRange(cv::cuda::PtrStepSz<uchar4> src, cv::cuda::PtrStep<uchar> out,
        unsigned char hue_low, unsigned char sat_low, unsigned char val_low,
        unsigned char hue_high, unsigned char sat_high, unsigned char val_high)
 {
@@ -27,14 +26,11 @@ __global__ void _InRange(cv::gpu::PtrStepSz<uchar4> src, cv::gpu::PtrStep<uchar>
   }
 }
 
-void cuInRange_caller(const cv::gpu::PtrStepSz<uchar4>& src, cv::gpu::PtrStep<uchar> out,
+void cuInRange_caller(const cv::cuda::PtrStepSz<uchar4>& src, cv::cuda::PtrStep<uchar> out,
                unsigned char hue_low, unsigned char sat_low, unsigned char val_low,
-               unsigned char hue_high, unsigned char sat_high, unsigned char val_high, cudaStream_t stream)
+               unsigned char hue_high, unsigned char sat_high, unsigned char val_high)
 {
   dim3 block(16, 16);
   dim3 grid((src.cols + block.x - 1)/block.x, (src.rows + block.y - 1)/ block.y);
-  _InRange<<<grid, block, 0, stream>>>(src, out, hue_low, sat_low, val_low, hue_high, sat_high, val_high);
-
-  if (stream == 0)
-     cudaDeviceSynchronize();
+  _InRange<<<grid, block, 0>>>(src, out, hue_low, sat_low, val_low, hue_high, sat_high, val_high);
 }

@@ -1,16 +1,17 @@
-#include <opencv2/gpu/stream_accessor.hpp>
+#include <cuda.h>
+#include <cuda_runtime.h>
+#include <opencv2/core/cuda.hpp>
 
-void cuInRange_caller(const cv::gpu::PtrStepSz<uchar4>& src, cv::gpu::PtrStep<uchar> out,
+void cuInRange_caller(const cv::cuda::PtrStepSz<uchar4>& src, cv::cuda::PtrStep<uchar> out,
                unsigned char hue_low, unsigned char sat_low, unsigned char val_low,
-               unsigned char hue_high, unsigned char sat_high, unsigned char val_high, cudaStream_t stream);
+               unsigned char hue_high, unsigned char sat_high, unsigned char val_high);
 
-void cuInRange(const cv::gpu::GpuMat& src, cv::gpu::GpuMat out,
+void cuInRange(const cv::cuda::GpuMat& src, cv::cuda::GpuMat out,
                unsigned char hue_low, unsigned char sat_low, unsigned char val_low,
-               unsigned char hue_high, unsigned char sat_high, unsigned char val_high, cv::gpu::Stream& stream = cv::gpu::Stream::Null())
+               unsigned char hue_high, unsigned char sat_high, unsigned char val_high)
 {
 	CV_Assert(src.type() == CV_8UC4);
 	out.create(src.size(), CV_8UC1);
-	cudaStream_t s = cv::gpu::StreamAccessor::getStream(stream);
-	cuInRange_caller(src, out, hue_low, sat_low, val_low, hue_high, sat_high, val_high, s);
+	cuInRange_caller(src, out, hue_low, sat_low, val_low, hue_high, sat_high, val_high);
 }
 
