@@ -9,6 +9,9 @@
 #include <time.h>
 #include <limits.h>
 
+#include <networktables/NetworkTableInstance.h>
+#include <cameraserver/CameraServer.h>
+
 #include "kernel.hpp"
 
 //#define SHOW
@@ -57,7 +60,7 @@ void sendcenter(int s, struct sockaddr_in *si_other, int slen, cv::Rect best_fit
      int centery = best_fit.y + best_fit.height/2;
      int center2x = best_fit2.x + best_fit2.width/2 ;
      int center2y = best_fit2.y + best_fit2.height/2;
-      std::stringstream message;
+      stringstream message;
       if (centerx != 0)
 	centerx = centerx - 320;
       if (centery != 0)
@@ -66,8 +69,8 @@ void sendcenter(int s, struct sockaddr_in *si_other, int slen, cv::Rect best_fit
 	center2x = center2x - 320;
       if (center2y != 0)
 	center2y = center2y - 240;
-      message << std::to_string(centerx) << " " << std::to_string(centery) << 
-         " " << std::to_string(center2x) << " " << std::to_string(center2y) << 
+      message << to_string(centerx) << " " << to_string(centery) << 
+         " " << to_string(center2x) << " " << to_string(center2y) << 
 #ifdef GEAR
     " 1";
 #elif GEAR2
@@ -75,18 +78,27 @@ void sendcenter(int s, struct sockaddr_in *si_other, int slen, cv::Rect best_fit
 #else
     " 0";
 #endif
-      std::cout << "sending " << message.str() << std::endl;
+      cout << "sending " << message.str() << endl;
       if (sendto(s, message.str().c_str(), message.str().size(), 0, (struct sockaddr *) si_other, slen) == SOCKET_ERROR)
       {
-        std::cout << "sendto() failed with error code : " << WSAGetLastError() << endl;
+        cout << "sendto() failed with error code : " << WSAGetLastError() << endl;
         //exit(EXIT_FAILURE);
       }
 }
 
+string gstreamer_pipeline (int capture_width, int capture_height, int display_width, int display_height, int framerate, int flip_method) {
+    return "nvarguscamerasrc ! video/x-raw(memory:NVMM), width=(int)" + to_string(capture_width) + ", height=(int)" +
+           to_string(capture_height) + ", format=(string)NV12, framerate=(fraction)" + to_string(framerate) +
+           "/1 ! nvvidconv flip-method=" + to_string(flip_method) + " ! video/x-raw, width=(int)" + to_string(display_width) + ", height=(int)" +
+           //to_string(display_height) + ", format=(string)BGRx ! videoconvert ! video/x-raw, format=(string)BGR ! appsink";
+           to_string(display_height) + ", format=(string)BGRx ! videoconvert ! appsink";
+}
+
+
 cv::Rect findRect(cv::Mat& hsv, cv::Mat& img)
 {
-  std::vector<std::vector<cv::Point>> contours;
-  cv::findContours(hsv, contours, CV_RETR_LIST, CV_CHAIN_APPROX_SIMPLE);
+  vector<vector<cv::Point>> contours;
+  cv::findContours(hsv, contours, cv::RETR_LIST, cv::CHAIN_APPROX_SIMPLE);
   //float min_ratio = 1000.f;
   //int min_dist_from_center = 1000;
   float best_area = 0;
@@ -156,7 +168,7 @@ cv::Rect findRect(cv::Mat& hsv, cv::Mat& img)
   //return rect;
   sendcenter(s, &si_other, slen, cv::Rect(), cv::Rect());
   return cv::Rect();
-  //throw std::runtime_error("No rect found.");
+  //throw runtime_error("No rect found.");
 }
 
 
@@ -169,7 +181,23 @@ int main(int argc, char const *argv[]) {
     double sec;
     double fps;
 
+    int capture_width = 320 ;
+    int capture_height = 240;
+    int display_width = 320 ;
+    int display_height = 240 ;
+    int framerate = 30 ;
+    int flip_method = 0 ;
+
     cout << cv::getBuildInformation();
+
+    string pipeline = gstreamer_pipeline(capture_width,
+        capture_height,
+        display_width,
+        display_height,
+        framerate,
+        flip_method);
+    //cout << "Using pipeline: \n\t" << pipeline << "\n";
+
 
   //struct sockaddr_in si_other;
   s = sizeof(si_other);
@@ -177,7 +205,7 @@ int main(int argc, char const *argv[]) {
 
   //create socket
   if ((s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == SOCKET_ERROR) {
-    std::cout << "sendto() failed with error code : " << WSAGetLastError() << endl;
+    cout << "sendto() failed with error code : " << WSAGetLastError() << endl;
     exit(EXIT_FAILURE);
   }
   int broadcastEnable = 1;
@@ -197,7 +225,9 @@ int main(int argc, char const *argv[]) {
 #elif GEAR2
     camera.open(2); // Used for USB
 #else
-    camera.open(0); // Used for USB
+    //camera.open(0); // Used for USB
+    camera.open(1); // Used for USB
+    //camera.open(pipeline, cv::CAP_GSTREAMER);
 #endif
     //camera.set(CV_CAP_PROP_FPS,100); doesn't work
 
@@ -235,8 +265,8 @@ int main(int argc, char const *argv[]) {
         if (counter == 0) time(&start);
 
         gpuimage.upload(img);
-	cv::cuda::cvtColor(gpuimage, gpuhsv, CV_RGB2HSV, 4);
-	cuInRange(gpuhsv, gputhresh, 60-GREENDIST, 50, 50, 60+GREENDIST, 255, 255);
+	cv::cuda::cvtColor(gpuimage, gpuhsv, cv::COLOR_RGB2HSV, 4);
+	cuInRange(gpuhsv, gputhresh, 60-GREENDIST, 50, 25, 60+GREENDIST, 255, 255);
         gputhresh.download(threshold);
 
 

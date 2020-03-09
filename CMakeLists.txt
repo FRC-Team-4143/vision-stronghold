@@ -1,6 +1,9 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 2.4)
 project(Vision2019)
 
+SET(CMAKE_BUILD_TYPE Release)
+SET(CMAKE_PREFIX_PATH "/usr/local/frc/")
+
 SET(EXEC_NAME Vision2019)
 
 SET(CUDA_USE_STATIC_CUDA_RUNTIME OFF)
@@ -10,6 +13,16 @@ if(COMMAND cmake_policy)
 	cmake_policy(SET CMP0015 OLD)  
 endif(COMMAND cmake_policy)
 
+#SET(CMAKE_MODULES_PATH "/usr/local/frc/share/wpiutil")
+
+#SET(wpilib_DIR /usr/local/frc/share/wpilib/)
+#SET(wpilibc_DIR /usr/local/frc/share/wpilibc/)
+#SET(wpiutil_DIR /usr/local/frc/share/wpiutil/)
+#SET(ntcore_DIR /usr/local/frc/share/ntcore/)
+#SET(cscore_DIR /usr/local/frc/share/cscore/)
+#SET(cameraserver_DIR /usr/local/frc/share/cameraserver/)
+#SET(hal_DIR /usr/local/frc/share/hal/)
+
 SET(EXECUTABLE_OUTPUT_PATH "${CMAKE_CURRENT_SOURCE_DIR}/bin")
 
 IF(WIN32) # Windows
@@ -18,6 +31,7 @@ ELSE() # Linux
 find_package(CUDA 6.5 REQUIRED)
 ENDIF(WIN32)
 find_package(OpenCV COMPONENTS core highgui imgproc features2d cudafeatures2d cudaimgproc cudafilters REQUIRED)
+find_package(wpilib REQUIRED)
 
 include_directories(${CUDA_INCLUDE_DIRS})
 include_directories(${OpenCV_INCLUDE_DIRS})
@@ -61,11 +75,13 @@ add_definitions(-std=c++11)
 TARGET_LINK_LIBRARIES(${EXEC_NAME}
 			${OpenCV_LIBRARIES}
 			${CUDA_LIBRARIES} ${CUDA_npps_LIBRARY}
+			cameraserver ntcore cscore wpiutil
 			)
 
 TARGET_LINK_LIBRARIES(${EXEC_NAME}-test
 			${OpenCV_LIBRARIES}
 			${CUDA_LIBRARIES} ${CUDA_npps_LIBRARY}
+			cameraserver ntcore cscore wpiutil
 			)
 
 #TARGET_LINK_LIBRARIES(${EXEC_NAME}-gear-test
